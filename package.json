@@ -1,0 +1,14 @@
+{
+  "name": "majorbackend",
+  "version": "1.0.0",
+  "description": "this is main part of the backend",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "backend"
+  ],
+  "author": "Kalp Chaniyara",
+  "license": "ISC"
+}
