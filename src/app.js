@@ -15,7 +15,7 @@ app.use(e.static("public"))
 app.use(cookieParser())
 
 //routes import
-import userRouter from "./routes/user.router.js" //we can give our own name when we used export default
+import userRouter from "./routes/userRoutes.js" //we can give our own name when we used export default
 
 //routes define
 //! app.get() ---> we can write it when we deifne routes,controllers all here but as now we seperate controllers and routes then we have to do it through the middleware compulosry

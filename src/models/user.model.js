@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import { Schema } from "mongoose";
 import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 
 const userScehma = new Schema({
     username: {
@@ -54,7 +54,7 @@ const userScehma = new Schema({
 userScehma.pre("save", async function (next) {
     if (!this.isModified("password"))
         return next()
-    this.password = bcrypt.hash(this.password, 10)  // chnage(encrypt) the password when user enter it first time or chnage it
+    this.password = await bcrypt.hash(this.password, 10)  // chnage(encrypt) the password when user enter it first time or chnage it
     next()
 })
 

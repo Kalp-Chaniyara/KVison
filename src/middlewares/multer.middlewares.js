@@ -15,3 +15,5 @@ const upload = multer({
     //? above and below both are same as new es6 versio of js bcz here property name and variable name both are same
     storage
 })
+
+export {upload}
