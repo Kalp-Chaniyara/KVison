@@ -1,7 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js"
 import {ApiError} from "../utils/ApiError.js"
 import { User } from "../models/user.model.js"
-import {uploadOnCloudinary} from "../utils/cloudinary"
+import {uploadOnCloudinary} from "../utils/cloudinary.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
 
 const registerUser = asyncHandler(async (req, res) => {
@@ -14,7 +14,7 @@ const registerUser = asyncHandler(async (req, res) => {
     }
     //Add another validation for email etc....
 
-    const exitedUser = User.findOne({
+    const exitedUser = await User.findOne({
         $or:[{username}, {email}]
     })
 
@@ -25,21 +25,33 @@ const registerUser = asyncHandler(async (req, res) => {
 
     //? try to print req.files and see all its properties and attributes
 
+    // console.log(req.body)
+    // const regularObject = { ...req.body };
+    // console.log(regularObject);
+
     const avatarLocalPath = req.files?.avatar[0]?.path;
-    const coverImageLocalPath = req.files?.avatar[0]?.path;
+    // const coverImageLocalPath = req.files?.coverImage[0]?.path; -------> //gives error bcz ---> what if we have req.files but no coverImage then coverImage[0] is not defined
+
+    let coverImageLocalPath;
+    if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0)
+    {
+        coverImageLocalPath=req.files.coverImage[0].path
+    }
 
     if(!avatarLocalPath)
         throw new ApiError(400, "avatar is required")
 
-    const avatar = await uploadOnCloudinary(avatarLocalPath)
+    console.log(avatarLocalPath)
+
+    const avatarOn = await uploadOnCloudinary(avatarLocalPath)
     const coverImage = await uploadOnCloudinary(coverImageLocalPath)
 
-    if(!avatar)
+    if(!avatarOn)
         throw new ApiError(400, "avatar file is required")
 
     const user = await User.create({
         fullName,
-        avatar:avatar.url,
+        avatar:avatarOn.url,
         coverImage:coverImage?.url || "",
         email,
         password,
@@ -50,8 +62,8 @@ const registerUser = asyncHandler(async (req, res) => {
         "-password -refreshToken"   //in the createdUser password and refreshToken is not selected and we can we see any fields except this two
     )
 
-    if(!createdUser)
-        throw new ApiError(500, "something went wrong while registering user")
+    // if(!createdUser)
+    //     throw new ApiError(500, "something went wrong while registering user")
 
     // const response = new ApiResponse(201, createdUser, "user created successfully")
     // return res.json(response)

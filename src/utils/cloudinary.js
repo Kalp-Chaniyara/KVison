@@ -1,5 +1,4 @@
-import { v2 } from "cloudinary";
-import { response } from "express";
+import { v2 as cloudinary } from "cloudinary";
 import fs from "fs"
 
 cloudinary.config({
@@ -12,13 +11,14 @@ const uploadOnCloudinary = async (localFilePath) => {
     try {
         if (!localFilePath)
             return null;
-        v2.uploader.upload(localFilePath, {
+        const response = await cloudinary.uploader.upload(localFilePath, {
             resource_type: "auto"
         })
-        console.log("file is uploaded on cloudinary ", response.url);
+        // console.log("file is uploaded on cloudinary ", response);
+        await fs.unlinkSync(localFilePath)
         return response;
     } catch (error) {
-        fs.unlinkSync(localFilePath) //remove the locally saved temporary file as the file upload operation failed
+        await fs.unlinkSync(localFilePath) //remove the locally saved temporary file as the file upload operation failed
         return null;
     }
 }
