@@ -1,25 +1,38 @@
 import { asyncHandler } from "../utils/asyncHandler.js"
-import {ApiError} from "../utils/ApiError.js"
+import { ApiError } from "../utils/ApiError.js"
 import { User } from "../models/user.model.js"
-import {uploadOnCloudinary} from "../utils/cloudinary.js"
-import {ApiResponse} from "../utils/ApiResponse.js"
+import { uploadOnCloudinary } from "../utils/cloudinary.js"
+import { ApiResponse } from "../utils/ApiResponse.js"
+
+const generateAccessAndRefreshTokens = async (userId) => {
+    try {
+        const user = User.findById(userId)
+        const accessToken = user.generateAccessToken()
+        const refreshToken = user.generateRefreshToken()
+
+        user.refreshToken = refreshToken
+        await user.save({ validateBeforeSave: false })
+
+        return { accessToken, refreshToken }
+    } catch (error) {
+        throw new ApiError(500, "Something went wrong while generating refresh and access token")
+    }
+}
 
 const registerUser = asyncHandler(async (req, res) => {
     const { fullName, email, username, password } = req.body
     console.log("email: ", email);
 
-    if ([fullName, email, username, password].some((field) => field?.trim() === ""))
-    {
+    if ([fullName, email, username, password].some((field) => field?.trim() === "")) {
         throw new ApiError(400, "Please fill in all fields.")
     }
     //Add another validation for email etc....
 
     const exitedUser = await User.findOne({
-        $or:[{username}, {email}]
+        $or: [{ username }, { email }]
     })
 
-    if(exitedUser)
-    {
+    if (exitedUser) {
         throw new ApiError(409, "user with email or username already exists")
     }
 
@@ -33,12 +46,11 @@ const registerUser = asyncHandler(async (req, res) => {
     // const coverImageLocalPath = req.files?.coverImage[0]?.path; -------> //gives error bcz ---> what if we have req.files but no coverImage then coverImage[0] is not defined
 
     let coverImageLocalPath;
-    if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0)
-    {
-        coverImageLocalPath=req.files.coverImage[0].path
+    if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
+        coverImageLocalPath = req.files.coverImage[0].path
     }
 
-    if(!avatarLocalPath)
+    if (!avatarLocalPath)
         throw new ApiError(400, "avatar is required")
 
     console.log(avatarLocalPath)
@@ -46,16 +58,16 @@ const registerUser = asyncHandler(async (req, res) => {
     const avatarOn = await uploadOnCloudinary(avatarLocalPath)
     const coverImage = await uploadOnCloudinary(coverImageLocalPath)
 
-    if(!avatarOn)
+    if (!avatarOn)
         throw new ApiError(400, "avatar file is required")
 
     const user = await User.create({
         fullName,
-        avatar:avatarOn.url,
-        coverImage:coverImage?.url || "",
+        avatar: avatarOn.url,
+        coverImage: coverImage?.url || "",
         email,
         password,
-        username:username.toLowerCase()
+        username: username.toLowerCase()
     })
 
     const createdUser = await User.findById(user._id).select(
@@ -73,6 +85,88 @@ const registerUser = asyncHandler(async (req, res) => {
     )
 })
 
+const logInUser = asyncHandler(async (req, res) => {
+    const { email, username, password } = req.body
+
+    if (!username || !email) {
+        throw new ApiError(400, "Please provide username or email")
+    }
+
+    const user = await User.findOne({
+        $or: [{ username }, { email }]
+    })
+
+    if (!user) {
+        throw new ApiError(404, "user not found")
+    }
+
+    const isPasswordValid = await user.isPasswordCorrect(password)
+
+    if (!isPasswordValid) {
+        throw new ApiError(404, "Invalid user password")
+    }
+
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id)
+
+    const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
+
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+
+    return res
+        .status(200)
+        .cookie("accessToken", accessToken, options)
+        .cookie("refreshToken", refreshToken, options)
+        .json(
+            new ApiResponse(
+                200,
+                {
+                    user: loggedInUser,
+                    accessToken,
+                    refreshToken
+                },
+                "User logged in successfully")
+        )
+})
+
+const logOutUser = asyncHandler(async (req, res) => {
+    //here we need the user to logOut but how can we get it ?
+    // We cannot get it from req.body as for register and login bcz we do not provide a form to user to logout otherwise it can logout any account by filling the form
+    //so by using the custom middleware we can get the user from the access/refresh token and we can take that user by adding it into the req during the middleware functionality
+
+    await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set: {
+                refreshToken: undefined
+            }
+        },
+        {
+            new: true
+        }
+    )
+
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+
+    return res
+        .status(200)
+        .clearCookie("accessToken", accessToken, options)
+        .clearCookie("refreshToken", refreshToken, options)
+        .json(
+            new ApiResponse(
+                200,
+                {},
+                "User logged out successfully")
+        )
+})
+
 export {
     registerUser,
+    logInUser,
+    logOutUser
 }
