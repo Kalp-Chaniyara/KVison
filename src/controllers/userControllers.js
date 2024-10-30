@@ -220,8 +220,8 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     }
 })
 
-const changeCurrentPassword = asyncHandler(async(req,res)=>{
-    const {currentPassword,newPassword} = req.body
+const changeCurrentPassword = asyncHandler(async (req, res) => {
+    const { currentPassword, newPassword } = req.body
 
     //We put verifyJWTAndGetUser middleware to check whether user is loggedin or not 
     //and if user is login then we can get the user from req.user
@@ -230,40 +230,40 @@ const changeCurrentPassword = asyncHandler(async(req,res)=>{
 
     const isEnteredPasswordCorrect = await user.isPasswordCorrect(currentPassword)
 
-    if(!isEnteredPasswordCorrect){
-        throw new ApiError(400,"Current password is incorrect")
+    if (!isEnteredPasswordCorrect) {
+        throw new ApiError(400, "Current password is incorrect")
     }
 
-    user.password=newPassword
-    await user.save({validateBeforeSave:false})
+    user.password = newPassword
+    await user.save({ validateBeforeSave: false })
 
     return res
-    .status(200)
-    .json(new ApiResponse(200,{},"Password changed Successfully"))
+        .status(200)
+        .json(new ApiResponse(200, {}, "Password changed Successfully"))
 })
 
-const getCurrentUser = asyncHandler(async (req,res)=>{
+const getCurrentUser = asyncHandler(async (req, res) => {
     return res
-    .status(200)
-    .json(new ApiResponse(200,req.user,"User fetched successfully"))
+        .status(200)
+        .json(new ApiResponse(200, req.user, "User fetched successfully"))
 })
 
-const updateUserAvatar = asyncHandler(async(req,res)=>{
+const updateUserAvatar = asyncHandler(async (req, res) => {
     const avatarLocalPath = req.file?.path
 
-    if(!avatarLocalPath){
-        throw new ApiError(400,"Avatar is missing")
+    if (!avatarLocalPath) {
+        throw new ApiError(400, "Avatar is missing")
     }
 
     const avatarOnCloudinary = await uploadOnCloudinary(avatarLocalPath)
 
-    if(!avatarOnCloudinary.url){
-        throw new ApiError(400,"Error while uploading an avatar")
+    if (!avatarOnCloudinary.url) {
+        throw new ApiError(400, "Error while uploading an avatar")
     }
 
     const user = await User.findById(req.user._id)
     user.avatar = avatarOnCloudinary.url
-    await user.save({validateBeforeSave:false})
+    await user.save({ validateBeforeSave: false })
 
     //*both above and below works completely correct
 
@@ -280,26 +280,26 @@ const updateUserAvatar = asyncHandler(async(req,res)=>{
     // )
 
     return res
-    .status(200)
-    .json(new ApiResponse(200,{user},"Avatar updated successfully"))
+        .status(200)
+        .json(new ApiResponse(200, { user }, "Avatar updated successfully"))
 })
 
-const updateUserCoverImage = asyncHandler(async(req,res)=>{
+const updateUserCoverImage = asyncHandler(async (req, res) => {
     const coverImageLocalPath = req.file?.path
 
-    if(!coverImageLocalPath){
-        throw new ApiError(400,"coverImage is missing")
+    if (!coverImageLocalPath) {
+        throw new ApiError(400, "coverImage is missing")
     }
 
     const coverImageOnCloudinary = await uploadOnCloudinary(coverImageLocalPath)
 
-    if(!coverImageOnCloudinary.url){
-        throw new ApiError(400,"Error while uploading an coverImage")
+    if (!coverImageOnCloudinary.url) {
+        throw new ApiError(400, "Error while uploading an coverImage")
     }
 
     const user = await User.findById(req.user._id)
     user.coverImage = coverImageOnCloudinary.url
-    await user.save({validateBeforeSave:false})
+    await user.save({ validateBeforeSave: false })
 
     //*both above and below works completely correct
 
@@ -316,79 +316,127 @@ const updateUserCoverImage = asyncHandler(async(req,res)=>{
     // )
 
     return res
-    .status(200)
-    .json(new ApiResponse(200,{user},"CoverImage updated successfully"))
+        .status(200)
+        .json(new ApiResponse(200, { user }, "CoverImage updated successfully"))
 })
 
-const userChannelProfile = asyncHandler(async(req,res)=>{
+const userChannelProfile = asyncHandler(async (req, res) => {
     const username = req.params
 
-    if(!username?.trim()){
-        throw new ApiError(400,"Username is missing")
+    if (!username?.trim()) {
+        throw new ApiError(400, "Username is missing")
     }
 
     const channel = await User.aggregate([
         {
-            $match:{
-                uername:username?.toLowerCase()  //1st username ---> attributes of the database
+            $match: {
+                uername: username?.toLowerCase()  //1st username ---> attributes of the database
             }
         },
         {
-            $lookup:{
-                from:"subscriptions",
-                localField:"_id",
-                foreignField:"channel",
-                as:"subscribers "
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",
+                as: "subscribers "
             }
         },
         {
-            $lookup:{
-                from:"subscriptions",
-                localField:"_id",
-                foreignField:"subscriber",
-                as:"subscribedTo "
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "subscriber",
+                as: "subscribedTo "
             }
         },
         {
-            $addFields:{
-                subscribersCount:{
-                    $size:"$subscribers"
+            $addFields: {
+                subscribersCount: {
+                    $size: "$subscribers"
                 },
-                cahnnelsSubscribedToCount:{
-                    $size:"$subscribedTo"
+                cahnnelsSubscribedToCount: {
+                    $size: "$subscribedTo"
                 },
-                isSubscribed:{
-                    $cond:{
-                        if:{
-                            $in:[req.user?._id, "$subscribers.subscriber"]
+                isSubscribed: {
+                    $cond: {
+                        if: {
+                            $in: [req.user?._id, "$subscribers.subscriber"]
                         },
-                        then:true,
-                        else:false
+                        then: true,
+                        else: false
                     }
                 }
             }
         },
         {
-            $project:{
-                fullName:1,
-                username:1,
-                email:1,
-                avatar:1,
-                coverImage:1,
-                subscribersCount:1,
-                cahnnelsSubscribedToCount:1,
-                isSubscribed:1
+            $project: {
+                fullName: 1,
+                username: 1,
+                email: 1,
+                avatar: 1,
+                coverImage: 1,
+                subscribersCount: 1,
+                cahnnelsSubscribedToCount: 1,
+                isSubscribed: 1
             }
         }
     ])
 
-    if(!channel?.length){
-        throw new ApiError(404,"Channel not found")
+    if (!channel?.length) {
+        throw new ApiError(404, "Channel not found")
     }
 
     return res
-    .status(200)
-    .json(new ApiResponse(200,channel[0],"Channel profile fetched successfully"))
+        .status(200)
+        .json(new ApiResponse(200, channel[0], "Channel profile fetched successfully"))
+})
+
+const getWatchHistory = asyncHandler(async (req, res) => {
+    const user = await User.aggregate([
+        {
+            $match: {
+                _id: new mongoose.Types.ObjectId(req.user._id)  //! req.user._id just returns the string not whole id, and _id is the whole mondodbId which type of ObjectId('......')... but in the regular basis mongoose behind the scene automatically convert req.user._id into the proper mongodbId when we use the findById or any operation.. But here we use the aggregation pipeline so monogoose does not work and also treat as mondodb so we need to convert it into the proper mongodb id that's why we use the new mongoose.Types.ObjectId(req.user._id) to convert into the actual proper mongodbId
+            }
+        },
+        {
+            $lookup: {
+                from: "videos",
+                localField: "watchHistory",
+                foreignField: "_id",
+                as: "watchHistory",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        fullName: 1,
+                                        username: 1,
+                                        avatar: 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        $addFields: {
+                            owner: {   //here the owner field name is already exists so it replace the old data with the new one (hre first object), and if owner doesn't exist then it add that into the field in which we want to add other it will replace old one with the new one.... to access this frontend developer has to access the 0th index element of the object array so we just pass them an object for easiness of the frontend developer, nothing else
+                                $first: "$owner"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ])
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, user[0].watchHistory, "Watch history fetched successfully"))
 })
 
 export {
@@ -400,5 +448,6 @@ export {
     getCurrentUser,
     updateUserAvatar,
     updateUserCoverImage,
-    userChannelProfile
+    userChannelProfile,
+    getWatchHistory
 }
