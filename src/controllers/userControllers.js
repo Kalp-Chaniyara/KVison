@@ -6,8 +6,9 @@ import { ApiResponse } from "../utils/ApiResponse.js"
 
 const generateAccessAndRefreshTokens = async (userId) => {
     try {
-        const user = User.findById(userId)
+        const user = await User.findById(userId)
         const accessToken = user.generateAccessToken()
+        // console.log("CHILLLL")
         const refreshToken = user.generateRefreshToken()
 
         user.refreshToken = refreshToken
@@ -88,7 +89,7 @@ const registerUser = asyncHandler(async (req, res) => {
 const logInUser = asyncHandler(async (req, res) => {
     const { email, username, password } = req.body
 
-    if (!username || !email) {
+    if (!username && !email) {
         throw new ApiError(400, "Please provide username or email")
     }
 
@@ -106,7 +107,11 @@ const logInUser = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Invalid user password")
     }
 
+    // console.log("IDD",user._id);
+
     const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id)
+
+    // console.log("DONEEEEEE")
 
     const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
 
@@ -140,13 +145,15 @@ const logOutUser = asyncHandler(async (req, res) => {
         req.user._id,
         {
             $set: {
-                refreshToken: undefined
+                refreshToken: null
             }
         },
         {
             new: true
         }
     )
+
+    // const userr = await User.findById(req.user._id);
 
     const options = {
         httpOnly: true,
@@ -155,12 +162,14 @@ const logOutUser = asyncHandler(async (req, res) => {
 
     return res
         .status(200)
-        .clearCookie("accessToken", accessToken, options)
-        .clearCookie("refreshToken", refreshToken, options)
+        .clearCookie("accessToken", options)
+        .clearCookie("refreshToken", options)
         .json(
             new ApiResponse(
                 200,
-                {},
+                {
+                    // userr
+                },
                 "User logged out successfully")
         )
 })

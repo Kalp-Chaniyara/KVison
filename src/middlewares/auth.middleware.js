@@ -3,7 +3,7 @@ import { ApiError } from "../utils/ApiError.js"
 import {User} from "../models/user.model.js"
 import jwt from "jsonwebtoken"
 
-const verifyJWTAndGetUser = asyncHandler(async(req,res,next)=>{
+export const verifyJWTAndGetUser = asyncHandler(async(req,_,next)=>{ // as res is not used we just write _ just standard production grade practice
     try {
         const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ","")
     

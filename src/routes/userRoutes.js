@@ -25,4 +25,4 @@ router.route("/login").post(logInUser)
 
 router.route("/logout").post(verifyJWTAndGetUser, logOutUser)
 
-export default router
+export default router 
